@@ -1,0 +1,15 @@
+ERROR: Interface 'nsIB2GKeyboard', in file 'b2g.idl' needs a new IID
+ERROR: Interface 'nsIFrameLoader', in file 'nsIFrameLoader.idl' needs a new IID
+ERROR: Interface 'nsIIndexedDatabaseUsageCallback', in file 'nsIIndexedDatabaseManager.idl' needs a new IID
+ERROR: Interface 'nsIDOMProgressEvent', in file 'nsIDOMProgressEvent.idl' needs a new IID
+ERROR: Interface 'nsIDOMMozNavigatorSms', in file 'nsIDOMNavigatorMobileMessage.idl' needs a new IID
+ERROR: Interface 'nsISmsRequest', in file 'nsIMobileMessageCallback.idl' needs a new IID
+ERROR: Interface 'nsIRILTelephonyCallback', in file 'nsIRadioInterfaceLayer.idl' needs a new IID
+ERROR: Interface 'nsIRILVoicemailCallback', in file 'nsIRadioInterfaceLayer.idl' needs a new IID
+ERROR: Interface 'nsIWebSocketChannel', in file 'nsIWebSocketChannel.idl' needs a new IID
+ERROR: Interface 'nsILoginManagerStorage', in file 'nsILoginManagerStorage.idl' needs a new IID
+ERROR: Interface 'nsINavHistoryResultNode', in file 'nsINavHistoryService.idl' needs a new IID
+ERROR: Interface 'nsINavHistoryVisitResultNode', in file 'nsINavHistoryService.idl' needs a new IID
+ERROR: Interface 'nsINavHistoryObserver', in file 'nsINavHistoryService.idl' needs a new IID
+ERROR: Interface 'IUIABridge', in file 'UIABridge.idl' needs a new IID
+ERROR: Interface 'IUIAElement', in file 'UIABridge.idl' needs a new IID
