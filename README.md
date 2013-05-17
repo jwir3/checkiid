@@ -112,9 +112,11 @@ V. Interpreting Output
 Once the script has completed, you will likely have something like the following
 output:
 
+```
 ERROR: Interface 'nsIB2GKeyboard', in file 'b2g.idl' needs a new IID
 ERROR: Interface 'nsIPrincipal', in file 'nsIPrincipal.idl' needs a new IID
  ... possibly more errors ...
+```
 
 This means that the script has identified two interfaces: 'nsIB2GKeyboard' and
 'nsIPrincipal' that it thinks need new IIDs. The script is unlikely to fail in
