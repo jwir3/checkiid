@@ -16,6 +16,9 @@
 #
 #       hg diff -r <startrev> -r <endrev> -I "**.idl"
 #
+# WARNING: Your tree must be in the same state as <endrev>. To achieve this,
+#          you must run: hg update -r <endrev> BEFORE running the script!
+#
 import re
 import sys
 import os.path
@@ -190,6 +193,10 @@ class SpecialBlockRange:
   # This method does not return anything, instead it populates the
   # gFilePathToCommentRangeMap global.
   #
+  # This will raise an IOError if aFilePath cannot be found. This usually only
+  # happens if the hg repository is in a different state/commit than what the
+  # script is expecting (the end revision is different).
+  #
   # @param aFilePath A string representing the path on disk of the file to
   #        check.
   def findAllSpecialBlocksForFile(aFilePath):
@@ -202,6 +209,7 @@ class SpecialBlockRange:
       gFilePathToCommentRangeMap[aFilePath] = []
 
     parseFile = open(aFilePath)
+
     lineNo = 0
     commentType = SpecialBlockType("\/\*", "\*\/")
     cppType = SpecialBlockType("\%{\s*C\+\+", "\%\}")
@@ -690,6 +698,7 @@ def parsePatch(aInputPatch, aRootPath):
   currentInterfaceName = None
   needInterfaceName = False
   foundIIDChangeLine = False
+  fileWarningsIssued = []
 
   # Note that this is NOT thsymbolse line number in the patch file, but rather the line
   # number where the patch line will take effect for the file in the hg root.
@@ -836,12 +845,25 @@ def parsePatch(aInputPatch, aRootPath):
     # Each of these operations is assigned into a variable for clarity when
     # reading the if statement.
     iidRemoval = isLineIIDRemoval(line)
-    cmt = isLineComment(line, currentLineNumber, currentIDLPath)
+    shouldIssueWarning = False
+
+    try:
+      cmt = isLineComment(line, currentLineNumber, currentIDLPath)
+    except:
+      # In this case, the file on which we wanted to run was not found, so just
+      # assume it's not a comment.
+      cmt = False
+      shouldIssueWarning = True
+
     constEx = isLineConstantExpression(line)
     change = isLineChange(line)
     binaryCompat = IDLDescriptor.areDescriptorsInLineAffectingBinaryCompat(line)
     descr = IDLDescriptor.hasDescriptorsInLine(line)
-
+    
+    if shouldIssueWarning & (currentIDLFile not in fileWarningsIssued):
+      fileWarningsIssued.append(currentIDLFile)
+      print("WARNING: '" + str(currentIDLFile) + "' was not found in local repository. Are you sure your repository is at the correct revision?")
+      
     # if line is change to an interface and not a comment, a constant expr, or
     # an IID removal line:
     if binaryCompat or (not descr and not iidRemoval and not cmt and not constEx and change and currentInterfaceName):
