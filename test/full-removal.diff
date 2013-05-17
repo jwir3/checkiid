@@ -1,0 +1,28 @@
+diff --git a/dom/interfaces/canvas/nsIDOMCanvasRenderingContext2D.idl b/dom/interfaces/canvas/nsIDOMCanvasRenderingContext2D.idl
+--- a/dom/interfaces/canvas/nsIDOMCanvasRenderingContext2D.idl                  
++++ b/dom/interfaces/canvas/nsIDOMCanvasRenderingContext2D.idl                  
+@@ -1,32 +1,15 @@                                                               
+ /* -*- Mode: IDL; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+ /* This Source Code Form is subject to the terms of the Mozilla Public         
+  * License, v. 2.0. If a copy of the MPL was not distributed with this         
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */                 
+
+ #include "nsISupports.idl"                                                     
+
+-[scriptable, uuid(bbb20a59-524e-4662-981e-5e142814b20c)]                       
+-interface nsIDOMCanvasGradient : nsISupports                                   
+-{                                                                              
+-  void addColorStop(in float offset, in DOMString color);                      
+-};                                                                             
+-                                                                               
+-[scriptable, uuid(21dea65c-5c08-4eb1-ac82-81fe95be77b8)]                       
+-interface nsIDOMCanvasPattern : nsISupports                                    
+-{                                                                              
+-};                                                                             
+-                                                                               
+-[scriptable, uuid(2d01715c-ec7d-424a-ab85-e0fd70c8665c)]                       
+-interface nsIDOMTextMetrics : nsISupports                                      
+-{                                                                              
+-  readonly attribute float width;                                              
+-};                                                                             
+-                

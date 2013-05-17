@@ -676,6 +676,16 @@ def isAdditionLine(aLine):
 
   return True
 
+def isEndOfInterfaceRemoval(aLine):
+  if not isRemovalLine(aLine):
+    return False
+
+  match = re.search("^[\-](\s)*\}", aLine)
+  if not match:
+    return False
+
+  return True
+
 # Detect whether a line in the diff output represents a removal to a file.
 #
 # @param aLine A line to check
@@ -746,8 +756,9 @@ def parsePatch(aInputPatch, aRootPath):
   needInterfaceName = False
   foundIIDChangeLine = False
   fileWarningsIssued = []
+  interfaceMayBeRemoved = False
 
-  # Note that this is NOT thsymbolse line number in the patch file, but rather the line
+  # Note that this is NOT the line number in the patch file, but rather the line
   # number where the patch line will take effect for the file in the hg root.
   currentLineNumber = -1
   lastLineWasRemoval = False
@@ -765,12 +776,15 @@ def parsePatch(aInputPatch, aRootPath):
 
     if idlStart:
       currentIDLFileWasDeleted = False
+      interfaceMayBeRemoved = False
+
+    if isAdditionLine(line):
+      interfaceMayBeRemoved = False
 
     if not currentInterfaceName:
       needInterfaceName = True
 
     if doesLineSignifyDeletion(line):
-
       gPrinter.debug("Current idl file: " + str(currentIDLFile) + " was deleted.")
       currentIDLFileWasDeleted = True
 
@@ -791,7 +805,6 @@ def parsePatch(aInputPatch, aRootPath):
 
     # if the line is the start of a non-idl file
     if isLineStartOfNewFile(line) and not idlStart:
-
       gPrinter.debug("Line number " + str(lineNo) + " is start of new file.")
 
       # clear our current interface name
@@ -829,6 +842,8 @@ def parsePatch(aInputPatch, aRootPath):
       currentInterfaceName = None
       foundIIDChangeLine = True
     elif isLineIIDDefinition(line):
+      if isRemovalLine(line):
+        interfaceMayBeRemoved = True
       needInterfaceName = True
       currentInterfaceName = None
       foundIIDChangeLine = False
@@ -911,6 +926,13 @@ def parsePatch(aInputPatch, aRootPath):
       # push interface name onto required revs list
       if currentInterfaceName not in interfacesRequiringNewIID:
         interfacesRequiringNewIID.append(currentInterfaceName)
+
+    # Finally, if we just saw the end of an interface's definition, and there
+    # were no additions (only removals), then we don't need to increment the
+    # IID of this interface, because it's being removed completely.
+    if isEndOfInterfaceRemoval(line) and interfaceMayBeRemoved and currentInterfaceName in interfacesRequiringNewIID:
+      interfacesRequiringNewIID.remove(currentInterfaceName)
+      interfaceMayBeRemoved = False
 
   return (interfacesRequiringNewIID, revvedInterfaces, interfaceNameIDLMap)
 
@@ -1020,7 +1042,7 @@ def main(aRootPath, aFile):
 
   ## OPTIONAL Unit Test Mode ###
   if gOutputTestPath:
-    tempFile = open(os.path.join(tempfile.gettempdir(), "checkiid-test-file.log"))
+    tempFile = open(os.path.join(tempfile.gettempdir(), "checkiid-test-file.log"), "w+")
     refFile = open(gOutputTestPath)
     refLines = refFile.readlines()
     tempLines = tempFile.readlines()
