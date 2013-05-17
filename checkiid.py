@@ -32,6 +32,9 @@ DEBUG = False
 # Verbose output switch
 VERBOSE = False
 
+# Whether or not color formatting should be turned on
+COLOR = True
+
 # Global list of IDL file paths -> block comment ranges
 gFilePathToCommentRangeMap = {}
 
@@ -43,6 +46,69 @@ gOutputTestPath = None
 
 # Command-line argument parser
 gParser = None
+
+# Printing utility vehicle
+gPrinter = None
+
+# This is a class that allows us to print prettier output to the command line.
+class PrettyPrinter:
+  INFO = '\033[92m'
+  DEBUG = '\033[94m'
+  WARNING = '\033[93m'
+  ERROR = '\033[91m'
+  ENDCOLOR = '\033[0m'
+
+  def __init__(self, aEnableColor=False, aDebugEnabled=False, aVerboseEnabled=False):
+    self.mColorEnabled = aEnableColor
+    self.mDebugEnabled = aDebugEnabled
+    self.mVerboseEnabled = aVerboseEnabled
+
+  def debug(self, aMessage):
+    self.printColor('debug', aMessage)
+
+  def warn(self, aMessage):
+    self.printColor('warn', aMessage)
+
+  def error(self, aMessage):
+    self.printColor('error', aMessage)
+
+  def info(self, aMessage):
+    self.printColor('info', aMessage)
+
+  def isColorDisabled(self):
+    return not self.mColorEnabled
+
+  def printNoColor(self, aType, aMessage):
+    if aType == 'warn':
+        print ("WARNING: " + str(aMessage))
+    elif aType == 'error':
+        print ("ERROR: " + str(aMessage))
+    elif aType == 'info':
+        if self.mVerboseEnabled:
+          print ("INFO: " + str(aMessage))
+    elif aType == 'debug':
+      if self.mDebugEnabled:
+        print ("DEBUG: " + str(aMessage))
+    else:
+      # just print the message verbatim then, with no additions
+      print(aMessage)
+
+  def printColor(self, aType, aMessage):
+    if self.isColorDisabled():
+      self.printNoColor(aType, aMessage)
+      return
+
+    if aType == 'warn':
+      print (self.WARNING + "WARNING: " + self.ENDCOLOR + str(aMessage))
+    elif aType == 'error':
+      print (self.ERROR + "ERROR: " + self.ENDCOLOR + str(aMessage))
+    elif aType == 'info':
+      if (self.mVerboseEnabled):
+        print (self.INFO + "INFO: " + self.ENDCOLOR + str(aMessage))
+    else:
+      # we assume that the type was 'debug' then
+      if self.mDebugEnabled:
+        print (self.DEBUG + "DEBUG: " + self.ENDCOLOR + str(aMessage))
 
 class IDLDescriptor:
   def __init__(self, aToken, aAffectsBinaryCompat):
@@ -56,13 +122,12 @@ class IDLDescriptor:
     return self.mToken
 
   def isInLine (self, aLine):
-    global DEBUG
+    global gPrinter
     match = re.search("^(\s)*[\+\-](\s)*\[(.*)](.*)", aLine)
     if match:
       splitAttrs = match.group(3).split(",")
       for attr in splitAttrs:
-        if DEBUG:
-          print("(DEBUG): Found descriptor: " + attr)
+        gPrinter.debug("Found descriptor: " + attr)
         if attr == self.mToken:
           return True
     return False
@@ -75,19 +140,17 @@ class IDLDescriptor:
     return False
 
   def areDescriptorsInLineAffectingBinaryCompat(aLine):
-    global DEBUG, gDescriptorList
+    global gDescriptorList
 
     if not IDLDescriptor.hasDescriptorsInLine(aLine):
       return False
 
     for desc in gDescriptorList:
       if desc.affectsBinaryCompatibility:
-        if DEBUG:
-          print("(DEBUG) Descriptor: " + desc.getToken() + " affects binary compatibility.")
+        gPrinter.debug("Descriptor: " + desc.getToken() + " affects binary compatibility.")
         return True
 
-    if DEBUG:
-      print("DEBUG: No descriptors found affecting binary compatibility.")
+    gPrinter.debug("No descriptors found affecting binary compatibility.")
     return False
 
   areDescriptorsInLineAffectingBinaryCompat = staticmethod(areDescriptorsInLineAffectingBinaryCompat)
@@ -200,10 +263,9 @@ class SpecialBlockRange:
   # @param aFilePath A string representing the path on disk of the file to
   #        check.
   def findAllSpecialBlocksForFile(aFilePath):
-    global gFilePathToCommentRangeMap, DEBUG
+    global gFilePathToCommentRangeMap, gPrinter
 
-    if DEBUG:
-      print("DEBUG: Starting findAllSpecialBlocksForFile")
+    gPrinter.debug("Starting findAllSpecialBlocksForFile")
 
     if not aFilePath in gFilePathToCommentRangeMap.keys():
       gFilePathToCommentRangeMap[aFilePath] = []
@@ -226,14 +288,12 @@ class SpecialBlockRange:
       # if the line contains a comment block, then we just ignore it right now
       # because we're not smart enough to handle offsets within a comment block.
       if commentType.containsSpecialBlock(line):
-        if DEBUG:
-          print("(" + aFilePath + ", Line " + str(lineNo) + "): A comment block starts and ends on this line.")
+        gPrinter.debug("(" + aFilePath + ", Line " + str(lineNo) + "): A comment block starts and ends on this line.")
         continue
 
       # if the line is the start of a special block range, document it
       if (commentType.isStartOfSpecialBlock(line)):
-        if DEBUG:
-          print("(DEBUG): Pushing to stack: " + str(commentType) + ", lastLineNo: " + str(lineNo))
+        gPrinter.debug("Pushing to stack: " + str(commentType) + ", lastLineNo: " + str(lineNo))
 
         blockStack.append((commentType, lineNo))
 
@@ -241,8 +301,7 @@ class SpecialBlockRange:
       # and add it to the map
       if (commentType.isEndOfSpecialBlock(line)):
         if len(blockStack) == 0:
-          if DEBUG:
-            print("(" + aFilePath + ", Line " + str(lineNo) + "): An error occurred while trying to pop from the stack.")
+          gPrinter.debug("(" + aFilePath + ", Line " + str(lineNo) + "): An error occurred while trying to pop from the stack.")
 
           # Right now, we just skip this line because we don't know what to do with it otherwise.
           # Once Ticket #90 (http://www.glasstowerstudios.com/trac/JMozTools/ticket/90)
@@ -251,42 +310,36 @@ class SpecialBlockRange:
 
         (lastSeenType, lastLineNo) = blockStack.pop()
 
-        if DEBUG:
-          print("(DEBUG): Popped from stack. Last seen type: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
+        gPrinter.debug("Popped from stack. Last seen type: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
 
         if lastSeenType == commentType:
           blockRange = SpecialBlockRange(lastLineNo, lineNo, aFilePath)
           gFilePathToCommentRangeMap[aFilePath].append(blockRange)
         else:
-          if DEBUG:
-            print("(DEBUG): Pushing to stack: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
+          gPrinter.debug("Pushing to stack: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
 
           blockStack.push((lastSeenType, lastLineNo))
 
       # if the line is the start of a cpp-specific code block
       if cppType.isStartOfSpecialBlock(line):
 
-        if DEBUG:
-          print("(DEBUG): Pushing to stack: " + str(cppType) + ", lastLineNo: " + str(lineNo))
+        gPrinter.debug("Pushing to stack: " + str(cppType) + ", lastLineNo: " + str(lineNo))
 
         blockStack.append((cppType, lineNo))
 
       if cppType.isEndOfSpecialBlock(line):
-        if len(blockStack) == 0 and DEBUG:
-          print("(" + aFilePath + ", Line " + str(lineNo) + "): An error occurred while trying to pop from the stack.")
+        if len(blockStack) == 0:
+          gPrinter.debug("(" + aFilePath + ", Line " + str(lineNo) + "): An error occurred while trying to pop from the stack.")
 
         (lastSeenType, lastLineNo) = blockStack.pop()
 
-        if DEBUG:
-          print("(DEBUG): Popped from stack. Last seen type: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
+        gPrinter.debug("Popped from stack. Last seen type: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
 
         if lastSeenType == cppType:
           blockRange = SpecialBlockRange(lastLineNo, lineNo, aFilePath)
           gFilePathToCommentRangeMap[aFilePath].append(blockRange)
         else:
-          if DEBUG:
-            print("(DEBUG): Pushing to stack: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
-
+          gPrinter.debug("Pushing to stack: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
           blockStack.push((lastSeenType, lastLineNo))
 
     parseFile.close()
@@ -440,16 +493,13 @@ def isLineStartOfNewFile(aLine):
   return False
 
 def isLineConstantExpression(aLine):
-  global DEBUG
+  global gPrinter
   if not isAdditionLine(aLine) and not isRemovalLine(aLine):
     return False
 
   match = re.search("^(\s)*[\+\-](\s)+const(\s)+(.*)", aLine)
   if match:
-
-    if DEBUG:
-      print("DEBUG: Line is constant expression: " + aLine)
-
+    gPrinter.debug("Line is constant expression: " + aLine)
     return True
   return False
 
@@ -465,7 +515,7 @@ def isLineConstantExpression(aLine):
 # @returns True, if aLine indicates a comment (block or single-line);
 #          False, otherwise.
 def isLineComment(aLine, aLineNumber, aFilePath):
-  global DEBUG
+  global gPrinter
   if not isLineChange(aLine):
     return False
 
@@ -479,9 +529,7 @@ def isLineComment(aLine, aLineNumber, aFilePath):
 
   for myRange in ranges:
     if aLineNumber in myRange:
-      if DEBUG:
-        print("Line " + str(aLineNumber) + ": Block comment running from: " + str(myRange.mStartLine) + " to " + str(myRange.mEndLine))
-
+      gPrinter.debug("Line " + str(aLineNumber) + ": Block comment running from: " + str(myRange.mStartLine) + " to " + str(myRange.mEndLine))
       return True
 
   return False
@@ -494,17 +542,16 @@ def isLineComment(aLine, aLineNumber, aFilePath):
 # @returns True, if the aLine corresponds to the definition of an interface;
 #          False, otherwise.
 def isInterfaceDefinitionLine(aLine):
-  global DEBUG
+  global gPrinter
 
   if extractInterfaceNameFromDefinitionLine(aLine):
     # If this line ends with a semicolon, then it's not a real interface
     # definition line, but rather a forward declaration. That's not what we want.
     trimmedLine = aLine.rstrip()
     if len(trimmedLine) == 0 or trimmedLine[len(trimmedLine) - 1] == ';':
-      if DEBUG:
-        print("Line: " + aLine + " was detected to be a forward declaration.")
-
+      gPrinter.debug("Line: " + aLine + " was detected to be a forward declaration.")
       return False
+
     return True
 
   return False
@@ -687,7 +734,7 @@ def updateFileMetadata(aLine, aPrevLineNumber, aLastLineWasRemoval):
 #          interfaceNameIDLMap is a map from interface names to IDL file full
 #          paths.
 def parsePatch(aInputPatch, aRootPath):
-  global DEBUG, gDescriptorList
+  global gPrinter, gDescriptorList
 
   currentIDLFile = None
   changedIDLFilePaths = []
@@ -724,9 +771,7 @@ def parsePatch(aInputPatch, aRootPath):
 
     if doesLineSignifyDeletion(line):
 
-      if DEBUG:
-        print("(DEBUG): Current idl file: " + str(currentIDLFile) + " was deleted.")
-
+      gPrinter.debug("Current idl file: " + str(currentIDLFile) + " was deleted.")
       currentIDLFileWasDeleted = True
 
     if currentIDLFileWasDeleted:
@@ -741,24 +786,19 @@ def parsePatch(aInputPatch, aRootPath):
       content = content.rstrip()
       if len(content) == 0:
 
-        if DEBUG:
-          print("Line " + str(lineNo) + " was detected to be empty. Continuing.")
-
+        gPrinter.debug("Line " + str(lineNo) + " was detected to be empty. Continuing.")
         continue
 
     # if the line is the start of a non-idl file
     if isLineStartOfNewFile(line) and not idlStart:
 
-      if DEBUG:
-        print("Line number " + str(lineNo) + " is start of new file.")
+      gPrinter.debug("Line number " + str(lineNo) + " is start of new file.")
 
       # clear our current interface name
       currentInterfaceName = None
 
     if (idlStart):
-
-      if DEBUG:
-        print("Line number " + str(lineNo) + " is start of IDL file.")
+      gPrinter.debug("Line number " + str(lineNo) + " is start of IDL file.")
 
       # pop last idl file, if there was one
       currentIDLFile = extractIDLFileName(line)
@@ -774,15 +814,13 @@ def parsePatch(aInputPatch, aRootPath):
       # now that we're in a new file, we need to make sure that we detect the
       # proper interface again
 
-      if DEBUG:
-        print("Interface name WAS: " + str(currentInterfaceName))
+      gPrinter.debug("Interface name WAS: " + str(currentInterfaceName))
 
       needInterfaceName = True
       currentInterfaceName = None
       foundIIDChangeLine = False
 
-      if DEBUG:
-        print("Interface now is: " + str(currentInterfaceName))
+      gPrinter.debug("Interface now is: " + str(currentInterfaceName))
 
     if isLineIIDAddition(line):
       # We'll need to put the interface name (as we haven't seen it yet)
@@ -799,20 +837,16 @@ def parsePatch(aInputPatch, aRootPath):
     # that defines the interface
     if needInterfaceName and isInterfaceDefinitionLine(line):
 
-      if DEBUG:
-        print("Line number " + str(lineNo) + " is interface definition line and we need one.")
+      gPrinter.debug("Line number " + str(lineNo) + " is interface definition line and we need one.")
 
       # extract the interface name
       currentInterfaceName = extractInterfaceNameFromDefinitionLine(line)
 
-      if DEBUG:
-        print("(Line " + str(lineNo) + "): Current interface name is now: " + currentInterfaceName)
+      gPrinter.debug("(Line " + str(lineNo) + "): Current interface name is now: " + currentInterfaceName)
 
       # push interface name onto revved interface list (for the previous step)
       if foundIIDChangeLine:
-
-        if DEBUG:
-          print("Appending " + str(currentInterfaceName) + " to revvedInterfaces");
+        gPrinter.debug("Appending " + str(currentInterfaceName) + " to revvedInterfaces");
 
         revvedInterfaces.append(currentInterfaceName)
         foundIIDChangeLine = False
@@ -826,8 +860,7 @@ def parsePatch(aInputPatch, aRootPath):
     # if this is a context line, then let's extract the line number from it
     if isContextLine(line):
 
-      if DEBUG:
-        print("Line number " + str(lineNo) + " is context line.")
+      gPrinter.debug("Line number " + str(lineNo) + " is context line.")
 
       currentLineNumber = extractLineNumberFromContext(line)
 
@@ -836,8 +869,7 @@ def parsePatch(aInputPatch, aRootPath):
       if isInterfaceContextLine(line):
         currentInterfaceName = extractInterfaceNameFromContextLine(line)
 
-        if DEBUG:
-          print("(DEBUG): Current interface is now: " + currentInterfaceName)
+        gPrinter.debug("Current interface is now: " + currentInterfaceName)
 
         # add mapping from interface name to idl file
         interfaceNameIDLMap[currentInterfaceName] = currentIDLFile
@@ -859,23 +891,22 @@ def parsePatch(aInputPatch, aRootPath):
     change = isLineChange(line)
     binaryCompat = IDLDescriptor.areDescriptorsInLineAffectingBinaryCompat(line)
     descr = IDLDescriptor.hasDescriptorsInLine(line)
-    
+
     if shouldIssueWarning & (currentIDLFile not in fileWarningsIssued):
       fileWarningsIssued.append(currentIDLFile)
-      print("WARNING: '" + str(currentIDLFile) + "' was not found in local repository. Are you sure your repository is at the correct revision?")
-      
+      gPrinter.warn(str(currentIDLFile) + "' was not found in local repository. Are you sure your repository is at the correct revision?")
+
     # if line is change to an interface and not a comment, a constant expr, or
     # an IID removal line:
     if binaryCompat or (not descr and not iidRemoval and not cmt and not constEx and change and currentInterfaceName):
 
-      if DEBUG:
-        print("Line number " + str(lineNo) + " with change to interface '" + currentInterfaceName + "' meets qualifications for needing an IID change.")
-        print("binaryCompat: " + str(binaryCompat))
-        print("change: " + str(change))
-        print("comment: " + str(cmt))
-        print("currentInterfaceName: " + str(currentInterfaceName))
-        print("iid removal: " + str(iidRemoval))
-        print("const expr: " + str(constEx))
+      gPrinter.debug("Line number " + str(lineNo) + " with change to interface '" + currentInterfaceName + "' meets qualifications for needing an IID change.")
+      gPrinter.debug("binaryCompat: " + str(binaryCompat))
+      gPrinter.debug("change: " + str(change))
+      gPrinter.debug("comment: " + str(cmt))
+      gPrinter.debug("currentInterfaceName: " + str(currentInterfaceName))
+      gPrinter.debug("iid removal: " + str(iidRemoval))
+      gPrinter.debug("const expr: " + str(constEx))
 
       # push interface name onto required revs list
       if currentInterfaceName not in interfacesRequiringNewIID:
@@ -884,7 +915,7 @@ def parsePatch(aInputPatch, aRootPath):
   return (interfacesRequiringNewIID, revvedInterfaces, interfaceNameIDLMap)
 
 def parseArguments():
-  global gParser, DEBUG, VERBOSE, gOutputTestPath
+  global gParser, DEBUG, VERBOSE, COLOR, gOutputTestPath
 
   if not gParser:
     createParser()
@@ -896,6 +927,9 @@ def parseArguments():
 
   if parsed.debug:
     DEBUG = True
+
+  if parsed.nocolor:
+    COLOR = False
 
   if not parsed.repo:
     gParser.print_help()
@@ -932,9 +966,11 @@ def createParser():
                         dest="testpath", nargs=1, help="Perform a unit test and compare output against a reference file.")
     gParser.add_argument('repo', help='Path to hg repository from where diff was taken', nargs=1)
     gParser.add_argument('inputfile', help='Path to a patch file on which to operate', nargs='?', default="stdin")
+    gParser.add_argument('-n', '--no-color', action="store_true", dest="nocolor",
+                         help='Disable output of colored ANSI text (helpful for scripts)')
 
 def main(aRootPath, aFile):
-  global VERBOSE, gDescriptorList, gOutputTestPath
+  global gPrinter, gDescriptorList, gOutputTestPath
 
   ### initialization stage ###
   implicitJs = IDLDescriptor("implicit_jscontext", True)
@@ -954,8 +990,7 @@ def main(aRootPath, aFile):
     if interface in revvedInterfaces:
       # report that we saw the interface and that it has an IID change
 
-      if VERBOSE:
-        print("Interface '" + interface + "' has changes and a modified IID. Looks good.")
+      gPrinter.info("Interface '" + interface + "' has changes and a modified IID. Looks good.")
 
       # then just continue, because this interface change is good
       continue
@@ -973,10 +1008,10 @@ def main(aRootPath, aFile):
     for interface in unrevvedInterfaces:
       # report that interface and the file that it's a part of
       interfaceFilename = interfaceNameIDLMap[interface]
-      message = "ERROR: Interface '" + interface + "', in file '" + interfaceFilename + "' needs a new IID"
+      message = "Interface '" + interface + "', in file '" + interfaceFilename + "' needs a new IID"
 
       if not gOutputTestPath:
-        print(message)
+        gPrinter.error(message)
       else:
         tempFile.write(message + "\n")
 
@@ -1016,6 +1051,10 @@ def main(aRootPath, aFile):
 
 if __name__ == '__main__':
   (patchFile, rootPath) = parseArguments()
+
+  # setup our printing utility vehicle
+  gPrinter = PrettyPrinter(COLOR, DEBUG, VERBOSE)
+
   main(rootPath, patchFile)
 
   if not patchFile == sys.stdin:
