@@ -1142,6 +1142,16 @@ def main(aRootPath, aFile):
     invalidCompFound = False
     reftestLineNo = 0
 
+    # scan through all lines and remove those that are prefixed with '#'
+    refLinesToRemove = []
+    for curRefLine in refLines:
+      match = re.search("^(\s)*#*", curRefLine)
+      if (match):
+        refLinesToRemove.append(curRefLine)
+
+    for lineToRemove in refLinesToRemove:
+      refLines.remove(lineToRemove)
+
     if len(tempLines) != len(refLines):
       invalidCompFound = True
       print("Expected " + str(len(refLines)) + " lines of output, Found: " + str(len(tempLines)) + " lines of output.")
