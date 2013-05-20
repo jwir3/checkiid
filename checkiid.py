@@ -361,6 +361,72 @@ def isStartOfIDLFile(aLine):
 
   return False
 
+# Detect whether or not a line is the addition of a new interface, based on
+# data collected from the line, the current interface (if one has been seen)
+# and the IDL file of which the interface is a part.
+#
+# @param aLine The line to check. This line must represent an interface
+#        definition line for this method to return true.
+# @param aCurrentInterface The name of the interface currently being processed.
+#        Can be None, but this will automatically result in a return value of
+#        False.
+# @param aIDLFilePath The path on the filesystem to the IDL file where
+#        aCurrentInterface is defined. If this is None, then this method will
+#        return False.
+# @param aLineRange A tuple containing the start and end lines (the range) from
+#        which we last saw the removal of the IID and interface. Can be None,
+#        but this will result in searching the entire IDL file for the given
+#        interface name.
+#
+# @returns True, if the line represents a new interface that was renamed from
+#          aCurrentInterface; False otherwise.
+def isLineInterfaceRename(aLine, aCurrentInterface, aIDLFilePath, aLineRange=None):
+  global gPrinter
+
+  if not aIDLFilePath:
+    gPrinter.debug("isLineInterfaceRename: Path nonexistent: " + str(aIDLFilePath))
+    return False
+
+  if not aCurrentInterface:
+    gPrinter.debug("isLineInterfaceRename: current interface is not set!")
+    return False
+
+  if not isInterfaceDefinitionLine(aLine):
+    gPrinter.debug("isLineInterfaceRename: aLine is not interface definition line")
+    return False
+
+  # If this line is an interface definition line, and a current interface is
+  # specified, then look at the IDL file path at the given lines, and see if
+  # they still contain the old interface name.
+  try:
+    idlFile = open(aIDLFilePath)
+  except:
+    # We had trouble opening the file, so just return a false value so we report
+    # the error.
+    gPrinter.debug("isLineInterfaceRename: could not open file path: '" + aIDLFilePath + "'")
+    return False
+
+  idlLines = idlFile.readlines()
+
+  if not aLineRange:
+    start = 0
+    end = len(idlLines)
+  else:
+    (start, end) = aLineRange
+
+  idlFile.close()
+
+  counter = start
+
+  while (counter <= end):
+    idlFileLine = idlLines[counter]
+    if aCurrentInterface in idlFileLine:
+      gPrinter.debug("isLineInterfaceRename: found '" + aCurrentInterface + "' in specified lines!")
+      return False
+    counter = counter + 1
+
+  return True
+
 # Detect whether or not a line is an addition of a line containing an IDL IID.
 #
 # @param aLine A line to check
@@ -753,10 +819,13 @@ def parsePatch(aInputPatch, aRootPath):
   interfacesRequiringNewIID = []
   interfaceNameIDLMap = {}
   currentInterfaceName = None
+  previousInterfaceName = None
   needInterfaceName = False
   foundIIDChangeLine = False
   fileWarningsIssued = []
   interfaceMayBeRemoved = False
+  lastUUIDChangeLineSeen = None
+  currentInterfaceWasRenamed = False
 
   # Note that this is NOT the line number in the patch file, but rather the line
   # number where the patch line will take effect for the file in the hg root.
@@ -777,6 +846,7 @@ def parsePatch(aInputPatch, aRootPath):
     if idlStart:
       currentIDLFileWasDeleted = False
       interfaceMayBeRemoved = False
+      currentInterfaceWasRenamed = False
 
     if isAdditionLine(line):
       interfaceMayBeRemoved = False
@@ -806,12 +876,17 @@ def parsePatch(aInputPatch, aRootPath):
     # if the line is the start of a non-idl file
     if isLineStartOfNewFile(line) and not idlStart:
       gPrinter.debug("Line number " + str(lineNo) + " is start of new file.")
+      lastUUIDChangeLineSeen = None
+      currentInterfaceWasRenamed = False
 
       # clear our current interface name
+      previousInterfaceName = currentInterfaceName
       currentInterfaceName = None
 
     if (idlStart):
       gPrinter.debug("Line number " + str(lineNo) + " is start of IDL file.")
+
+      lastUUIDChangeLineSeen = None
 
       # pop last idl file, if there was one
       currentIDLFile = extractIDLFileName(line)
@@ -830,6 +905,7 @@ def parsePatch(aInputPatch, aRootPath):
       gPrinter.debug("Interface name WAS: " + str(currentInterfaceName))
 
       needInterfaceName = True
+      previousInterfaceName = currentInterfaceName
       currentInterfaceName = None
       foundIIDChangeLine = False
 
@@ -839,12 +915,14 @@ def parsePatch(aInputPatch, aRootPath):
       # We'll need to put the interface name (as we haven't seen it yet)
       # into the currentInterface variable
       needInterfaceName = True
+      previousInterfaceName = currentInterfaceName
       currentInterfaceName = None
       foundIIDChangeLine = True
     elif isLineIIDDefinition(line):
       if isRemovalLine(line):
         interfaceMayBeRemoved = True
       needInterfaceName = True
+      previousInterfaceName = currentInterfaceName
       currentInterfaceName = None
       foundIIDChangeLine = False
 
@@ -872,6 +950,15 @@ def parsePatch(aInputPatch, aRootPath):
       # add mapping from interface name to idl file
       interfaceNameIDLMap[currentInterfaceName] = currentIDLFile
 
+    # if we didn't need an interface name, but this still happens to be an
+    # interface definition line, then we might be in a situation where the
+    # interface was renamed.
+    if not needInterfaceName and isInterfaceDefinitionLine(line):
+      gPrinter.debug("We apparently don't need an interface name, but line: " + str(lineNo) + " was detected to be an interface definition line.")
+      if isLineInterfaceRename(line, previousInterfaceName, currentIDLPath, (lastUUIDChangeLineSeen, currentLineNumber + 1)):
+        gPrinter.debug("'" + currentInterfaceName + "' was renamed!")
+        currentInterfaceWasRenamed = True
+
     # if this is a context line, then let's extract the line number from it
     if isContextLine(line):
 
@@ -892,6 +979,10 @@ def parsePatch(aInputPatch, aRootPath):
     # Each of these operations is assigned into a variable for clarity when
     # reading the if statement.
     iidRemoval = isLineIIDRemoval(line)
+
+    if iidRemoval:
+      lastUUIDChangeLineSeen = currentLineNumber
+
     shouldIssueWarning = False
 
     try:
@@ -913,10 +1004,11 @@ def parsePatch(aInputPatch, aRootPath):
 
     # if line is change to an interface and not a comment, a constant expr, or
     # an IID removal line:
-    if binaryCompat or (not descr and not iidRemoval and not cmt and not constEx and change and currentInterfaceName):
+    if binaryCompat or (not currentInterfaceWasRenamed and not descr and not iidRemoval and not cmt and not constEx and change and currentInterfaceName):
 
       gPrinter.debug("Line number " + str(lineNo) + " with change to interface '" + currentInterfaceName + "' meets qualifications for needing an IID change.")
       gPrinter.debug("binaryCompat: " + str(binaryCompat))
+      gPrinter.debug("currentInterfaceWasRenamed: " + str(currentInterfaceWasRenamed))
       gPrinter.debug("change: " + str(change))
       gPrinter.debug("comment: " + str(cmt))
       gPrinter.debug("currentInterfaceName: " + str(currentInterfaceName))
