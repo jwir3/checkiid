@@ -90,7 +90,7 @@ class IDLDescriptor:
 
   # Determine if any descriptors in a given line affect binary compatibility.
   #
-  # @param aLIne The line to check, presumably from an IDL file or patch file.
+  # @param aLine The line to check, presumably from an IDL file or patch file.
   # @param aPrinter An optional argument of type PrettyPrinter to route debug
   #        output from this method through.
   #
@@ -206,3 +206,170 @@ class SpecialBlockType:
     if match:
       return True
     return False
+
+# A SpecialBlockRange is composed of two numerals indicating lines at which
+# the range starts and ends, respectively, as well as a member variable
+# indicating the file from which the range was generated.
+#
+# The following are cases that the SpecialBlockRange handles:
+# Block comment range: StartingToken: /*, Ending token: */
+# C++-specific range: Starting token {%C++, Ending token: %}
+#
+# @todo Currently, SpecialBlockRange objects only operate on lines of a file,
+#       not on individual chracters within a line. It should be modified to
+#       be more granular in the future.
+class SpecialBlockRange:
+
+  # A mapping of file paths to special block range objects.
+  kFilePathToCommentRangeMap = {};
+
+  # Create a new object of type SpecialBlockRange.
+  #
+  # @param aStart The line at which the SpecialBlockRange begins.
+  # @param aEnd The line at which the SpecialBlockRange ends.
+  # @param aFilePath The relative file path where the IDLFile containing the
+  #        special block is located. This is used to query the file for context
+  #        surrounding a given set of diff output lines.
+  def __init__(self, aStart, aEnd, aFilePath):
+    self.mStartLine = aStart
+    self.mEndLine = aEnd
+    self.mFilePath = aFilePath
+
+  # A SpecialBlockRange (x,y) CONTAINS a line number, l, iff l>=x AND l<=y.
+  def __contains__(self, x):
+    if x >= self.mStartLine and x <= self.mEndLine:
+      return True
+    return False
+
+  # Retrieve the length of the special block range, in lines.
+  def __len__(self):
+    return self.getEndLine() - self.getStartLine() + 1
+
+  def __str__(self):
+    return "[SpecialBlockRange (" + str(self.mStartLine) + ", " + str(self.mEndLine) + ")]"
+
+  # Retrieve the line number of the start of this SpecialBlockRange.
+  #
+  # @returns The line number of the start of this SpecialBlockRange.
+  def getStartLine(self):
+    return self.mStartLine
+
+  # Retrieve the line number of the end of this SpecialBlockRange.
+  #
+  # @returns The line number of the end of this SpecialBlockRange.
+  def getEndLine(self):
+    return self.mEndLine
+
+  # @returns The relative file path where the IDLFile containing the
+  #          special block is located.
+  def getFilePath(self):
+    return self.mFilePath
+
+  # Create a set of objects representing ranges in a given IDL file.
+  #
+  # @param aFilePath The location on disk of the IDL file for which to construct
+  #        ranges of special blocks.
+  # @param aPrinter An optional argument of type PrettyPrinter to route debug
+  #        output from this method through.
+  def getRangesForFilePath(aFilePath, aPrinter=None):
+    if not aFilePath in SpecialBlockRange.kFilePathToCommentRangeMap:
+      SpecialBlockRange.findAllSpecialBlocksForFile(aFilePath, aPrinter)
+
+    return SpecialBlockRange.kFilePathToCommentRangeMap[aFilePath]
+
+  # Find all the special block ranges for a file, given the file path.aFilePath
+  # This method does not return anything, instead it populates the
+  # SpecialBlockRange.kFilePathToCommentRangeMap static member variable.
+  #
+  # This will raise an IOError if aFilePath cannot be found. This usually only
+  # happens if the hg repository is in a different state/commit than what the
+  # script is expecting (the end revision is different).
+  #
+  # @param aFilePath A string representing the path on disk of the file to
+  #        check.
+  # @param aPrinter An optional argument of type PrettyPrinter to route debug
+  #        output from this method through.
+  def findAllSpecialBlocksForFile(aFilePath, aPrinter=None):
+
+    aPrinter.debug("Starting findAllSpecialBlocksForFile")
+
+    if not aFilePath in SpecialBlockRange.kFilePathToCommentRangeMap.keys():
+      SpecialBlockRange.kFilePathToCommentRangeMap[aFilePath] = []
+
+    parseFile = open(aFilePath)
+
+    lineNo = 0
+    commentType = SpecialBlockType("\/\*", "\*\/")
+    cppType = SpecialBlockType("\%{\s*C\+\+", "\%\}")
+
+    # This is a stack of (SpecialBlockType, integer) tuples that represents
+    # the last type seen along with the line number at which it was seen, so
+    # we can correctly handle nested types.
+    blockStack = []
+
+    # for each line in the file path
+    for line in parseFile:
+      lineNo = lineNo + 1
+
+      # if the line contains a comment block, then we just ignore it right now
+      # because we're not smart enough to handle offsets within a comment block.
+      if commentType.containsSpecialBlock(line):
+        aPrinter.debug("(" + aFilePath + ", Line " + str(lineNo) + "): A comment block starts and ends on this line.")
+        continue
+
+      # if the line is the start of a special block range, document it
+      if (commentType.isStartOfSpecialBlock(line)):
+        aPrinter.debug("Pushing to stack: " + str(commentType) + ", lastLineNo: " + str(lineNo))
+
+        blockStack.append((commentType, lineNo))
+
+      # if the line is the end of a block comment, create a SpecialBlockRange
+      # and add it to the map
+      if (commentType.isEndOfSpecialBlock(line)):
+        if len(blockStack) == 0:
+          aPrinter.debug("(" + aFilePath + ", Line " + str(lineNo) + "): An error occurred while trying to pop from the stack.")
+
+          # Right now, we just skip this line because we don't know what to do with it otherwise.
+          # Once Ticket #90 (http://www.glasstowerstudios.com/trac/JMozTools/ticket/90)
+          # is fixed, we can do something more intelligent here.
+          continue
+
+        (lastSeenType, lastLineNo) = blockStack.pop()
+
+        aPrinter.debug("Popped from stack. Last seen type: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
+
+        if lastSeenType == commentType:
+          blockRange = SpecialBlockRange(lastLineNo, lineNo, aFilePath)
+          SpecialBlockRange.kFilePathToCommentRangeMap[aFilePath].append(blockRange)
+        else:
+          aPrinter.debug("Pushing to stack: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
+
+          blockStack.push((lastSeenType, lastLineNo))
+
+      # if the line is the start of a cpp-specific code block
+      if cppType.isStartOfSpecialBlock(line):
+
+        aPrinter.debug("Pushing to stack: " + str(cppType) + ", lastLineNo: " + str(lineNo))
+
+        blockStack.append((cppType, lineNo))
+
+      if cppType.isEndOfSpecialBlock(line):
+        if len(blockStack) == 0:
+          aPrinter.debug("(" + aFilePath + ", Line " + str(lineNo) + "): An error occurred while trying to pop from the stack.")
+
+        (lastSeenType, lastLineNo) = blockStack.pop()
+
+        aPrinter.debug("Popped from stack. Last seen type: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
+
+        if lastSeenType == cppType:
+          blockRange = SpecialBlockRange(lastLineNo, lineNo, aFilePath)
+          SpecialBlockRange.kFilePathToCommentRangeMap[aFilePath].append(blockRange)
+        else:
+          aPrinter.debug("Pushing to stack: " + str(lastSeenType) + ", lastLineNo: " + str(lastLineNo))
+          blockStack.push((lastSeenType, lastLineNo))
+
+    parseFile.close()
+
+  # Make the getRanges and findAllComments methods static.
+  findAllSpecialBlocksForFile = staticmethod(findAllSpecialBlocksForFile)
+  getRangesForFilePath = staticmethod(getRangesForFilePath)
