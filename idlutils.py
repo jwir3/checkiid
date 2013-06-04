@@ -100,13 +100,9 @@ class IDLDescriptor:
   #
   # @note This is a static function, so it should be called as:
   #       IDLDescriptor.areDescriptorsInLineAffectingBinaryCompat(...)
-  # @todo This does not work correctly right now. See Issue # 14.
   def areDescriptorsInLineAffectingBinaryCompat(aLine, aPrinter=None):
-    if not IDLDescriptor.hasDescriptorsInLine(aLine, aPrinter):
-      return False
-
     for desc in IDLDescriptor.kDescriptorList:
-      if desc.affectsBinaryCompatibility:
+      if desc.isInLine(aLine, aPrinter) and desc.affectsBinaryCompatibility:
         if aPrinter:
           aPrinter.debug("Descriptor: " + desc.getToken() + " affects binary compatibility.")
         return True
