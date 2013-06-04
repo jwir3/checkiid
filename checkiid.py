@@ -50,6 +50,24 @@ gParser = None
 # Printing utility vehicle
 gPrinter = None
 
+# Simple class representing an interface or dictionary name.
+# class ChangeContainer:
+#  def __init__(self, aName, aType='interface'):
+#    self.mType = aType
+#    self.mName = aName
+#
+#  def __str__(self):
+#    return self.getName()
+#
+#  def getName(self):
+#    return self.mName
+#
+#  def isInterface(self):
+#    return self.mType == 'interface'
+#
+#  def isDictionary(self):
+#    return self.mType == 'dictionary'
+
 # A SpecialBlockRange is composed of two numerals indicating lines at which
 # the range starts and ends, respectively, as well as a member variable
 # indicating the file from which the range was generated.
@@ -252,14 +270,23 @@ def isLineInterfaceRename(aLine, aCurrentInterface, aIDLFilePath, aLineRange=Non
   else:
     (start, end) = aLineRange
 
+  if not start:
+    start = 0
+
+  if not end or end > len(idlLines):
+    end = len(idlLines)
+
+  gPrinter.debug("start is: " + str(start) + ", end is: " + str(end))
   idlFile.close()
 
-  counter = start
+  counter = start - 1
 
-  while (counter <= end):
+  gPrinter.debug("idlLines has: " + str(len(idlLines)) + " lines.")
+  while (counter < end):
+    gPrinter.debug("Attempting to get value within idlLines at line: " + str(counter))
     idlFileLine = idlLines[counter]
-    if aCurrentInterface in idlFileLine:
-      gPrinter.debug("isLineInterfaceRename: found '" + aCurrentInterface + "' in specified lines!")
+    if str(aCurrentInterface) in idlFileLine:
+      gPrinter.debug("isLineInterfaceRename: found '" + str(aCurrentInterface) + "' in specified lines!")
       return False
     counter = counter + 1
 
@@ -492,7 +519,7 @@ def isContextLine(aLine):
 #
 # @param aLine The line to check
 #
-# @returns The interface name, if one was found in the line;
+# @returns A ChangeContainer with the interface name, if one was found in the line;
 #          None, otherwise.
 def extractInterfaceNameFromDefinitionLine(aLine):
   patchExtraction = extractInterfaceName(aLine, "[\+,\-]")
@@ -506,7 +533,7 @@ def extractInterfaceNameFromDefinitionLine(aLine):
 #
 # @param aLine The line to check
 #
-# @returns The interface name, if one was found in the line;
+# @returns A ChangeContainer with the interface name, if one was found in the line;
 #          None, otherwise.
 def extractInterfaceNameFromContextLine(aLine):
   return extractInterfaceName(aLine, "@@(\s)+(.*)(\s)+@@")
@@ -535,7 +562,8 @@ def extractLineNumberFromContext(aLine):
 # NOTE: dictionaries are not required to have IIDs, so they are ignored by this
 #       system.
 #
-# @returns The name of the interface, if one was detected, or None otherwise.
+# @returns A ChangeContainer with the name of the interface, if one was
+#          detected, or None otherwise.
 def extractInterfaceName(aLine, aContextPrefix=''):
   # interface [NAME] (optional : followed by one or more items)
   match = re.search("^" + aContextPrefix + "(\s)*interface(\s)+(.*)(\s)*\:(\s)*(.*)", aLine)
@@ -548,6 +576,8 @@ def extractInterfaceName(aLine, aContextPrefix=''):
       return match.group(groupNum).rstrip()
     else:
       return match.group(baseIndex).rstrip()
+
+#    return ChangeContainer(name, 'interface')
   return None
 
 # Detect whether or not a line from diff output is a line representing a change.
@@ -773,7 +803,7 @@ def parsePatch(aInputPatch, aRootPath):
       # extract the interface name
       currentInterfaceName = extractInterfaceNameFromDefinitionLine(line)
 
-      gPrinter.debug("(Line " + str(lineNo) + "): Current interface name is now: " + currentInterfaceName)
+      gPrinter.debug("(Line " + str(lineNo) + "): Current interface name is now: " + str(currentInterfaceName))
 
       # push interface name onto revved interface list (for the previous step)
       if foundIIDChangeLine:
@@ -794,7 +824,7 @@ def parsePatch(aInputPatch, aRootPath):
     if not needInterfaceName and isInterfaceDefinitionLine(line):
       gPrinter.debug("We apparently don't need an interface name, but line: " + str(lineNo) + " was detected to be an interface definition line.")
       if isLineInterfaceRename(line, previousInterfaceName, currentIDLPath, (lastUUIDChangeLineSeen, currentLineNumber + 1)):
-        gPrinter.debug("'" + currentInterfaceName + "' was renamed!")
+        gPrinter.debug("'" + str(currentInterfaceName) + "' was renamed!")
         currentInterfaceWasRenamed = True
 
     # if this is a context line, then let's extract the line number from it
@@ -809,7 +839,7 @@ def parsePatch(aInputPatch, aRootPath):
       if isInterfaceContextLine(line):
         currentInterfaceName = extractInterfaceNameFromContextLine(line)
 
-        gPrinter.debug("Current interface is now: " + currentInterfaceName)
+        gPrinter.debug("Current interface is now: " + str(currentInterfaceName))
 
         # add mapping from interface name to idl file
         interfaceNameIDLMap[currentInterfaceName] = currentIDLFile
@@ -844,7 +874,7 @@ def parsePatch(aInputPatch, aRootPath):
     # an IID removal line:
     if binaryCompat or (not currentInterfaceWasRenamed and not descr and not iidRemoval and not cmt and not constEx and change and currentInterfaceName):
 
-      gPrinter.debug("Line number " + str(lineNo) + " with change to interface '" + currentInterfaceName + "' meets qualifications for needing an IID change.")
+      gPrinter.debug("Line number " + str(lineNo) + " with change to interface '" + str(currentInterfaceName) + "' meets qualifications for needing an IID change.")
       gPrinter.debug("binaryCompat: " + str(binaryCompat))
       gPrinter.debug("currentInterfaceWasRenamed: " + str(currentInterfaceWasRenamed))
       gPrinter.debug("change: " + str(change))
@@ -942,7 +972,7 @@ def main(aRootPath, aFile):
     if interface in revvedInterfaces:
       # report that we saw the interface and that it has an IID change
 
-      gPrinter.info("Interface '" + interface + "' has changes and a modified IID. Looks good.")
+      gPrinter.info("Interface '" + str(interface) + "' has changes and a modified IID. Looks good.")
 
       # then just continue, because this interface change is good
       continue
@@ -960,11 +990,12 @@ def main(aRootPath, aFile):
     for interface in unrevvedInterfaces:
       # report that interface and the file that it's a part of
       interfaceFilename = interfaceNameIDLMap[interface]
-      message = "Interface '" + interface + "', in file '" + interfaceFilename + "' needs a new IID"
+      message = "Interface '" + str(interface) + "', in file '" + interfaceFilename + "' needs a new IID"
 
       if not gOutputTestPath:
         gPrinter.error(message)
       else:
+        gPrinter.debug("Printing '" + str(message) + "' to tempFile...")
         tempFile.write(message + "\n")
 
     if gOutputTestPath:
@@ -972,10 +1003,20 @@ def main(aRootPath, aFile):
 
   ## OPTIONAL Unit Test Mode ###
   if gOutputTestPath:
-    tempFile = open(os.path.join(tempfile.gettempdir(), "checkiid-test-file.log"), "w+")
-    refFile = open(gOutputTestPath)
+    try:
+      tempFile = open(os.path.join(tempfile.gettempdir(), "checkiid-test-file.log"), "r")
+      tempLines = tempFile.readlines()
+      tempFile.close()
+
+    except:
+      hitException = True
+      tempLines = []
+
+    refFile = open(gOutputTestPath, "r")
+    gPrinter.debug("Opening '" + str(gOutputTestPath) + "' as reference file")
     refLines = refFile.readlines()
-    tempLines = tempFile.readlines()
+    gPrinter.debug("RefLines: " + str(refLines))
+    refFile.close()
 
     invalidCompFound = False
     reftestLineNo = 0
@@ -983,26 +1024,31 @@ def main(aRootPath, aFile):
     # scan through all lines and remove those that are prefixed with '#'
     refLinesToRemove = []
     for curRefLine in refLines:
-      match = re.search("^(\s)*#*", curRefLine)
+      match = re.search("^#", curRefLine)
       if (match):
+        gPrinter.debug("Removing line from refFile: " + str(curRefLine))
         refLinesToRemove.append(curRefLine)
 
     for lineToRemove in refLinesToRemove:
       refLines.remove(lineToRemove)
 
+    for curInputLine in tempLines:
+      gPrinter.debug("input line: " + curInputLine)
+    gPrinter.debug("Number of input lines: " + str(len(tempLines)))
+    gPrinter.debug("Number of reference lines: " + str(len(refLines)))
     if len(tempLines) != len(refLines):
       invalidCompFound = True
       print("Expected " + str(len(refLines)) + " lines of output, Found: " + str(len(tempLines)) + " lines of output.")
     else:
+      gPrinter.debug("Comparing line-by-line...")
       for line1 in refLines:
+        gPrinter.debug("Reference line was: " + str(line1))
         line2 = tempLines[reftestLineNo]
-        if line1 != line2:
+        gPrinter.debug("Input line was: " + str(line2))
+        if line1 is line2:
           invalidCompFound = True
           print("Expected: " + str(line1) + ", Found: " + str(line2))
         reftestLineNo = reftestLineNo + 1
-
-    refFile.close()
-    tempFile.close()
 
     if invalidCompFound:
       print ("UNEXPECTED-TEST-FAIL")

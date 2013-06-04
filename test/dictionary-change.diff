@@ -1,0 +1,19 @@
+diff --git a/dom/interfaces/events/nsIDOMDeviceProximityEvent.idl b/dom/interfaces/events/nsIDOMDeviceProximityEvent.idl
+--- a/dom/interfaces/events/nsIDOMDeviceProximityEvent.idl                      
++++ b/dom/interfaces/events/nsIDOMDeviceProximityEvent.idl                      
+@@ -16,12 +16,12 @@ interface nsIDOMDeviceProximityEvent : n                    
+   readonly attribute double value;                                             
+   readonly attribute double min;                                               
+   readonly attribute double max;                                               
+ };                                                                             
+
+
+ dictionary DeviceProximityEventInit : EventInit                                
+ {                                                                              
+-   double value;                                                               
+-   double min;                                                                 
+-   double max;                                                                 
++   double value = Infinity;                                                    
++   double min = -Infinity;                                                     
++   double max = Infinity;                                                      
+ }; 
