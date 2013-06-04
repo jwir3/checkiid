@@ -25,6 +25,9 @@ import os.path
 import argparse
 import tempfile
 import difflib
+from prettyprinter import PrettyPrinter
+from idlutils import IDLDescriptor
+from idlutils import SpecialBlockType
 
 # Use to turn on debugging output
 DEBUG = False
@@ -38,9 +41,6 @@ COLOR = True
 # Global list of IDL file paths -> block comment ranges
 gFilePathToCommentRangeMap = {}
 
-# Global list of IDL descriptors
-gDescriptorList = []
-
 # Path to reference "output" file when performing unit test in test mode.
 gOutputTestPath = None
 
@@ -49,168 +49,6 @@ gParser = None
 
 # Printing utility vehicle
 gPrinter = None
-
-# This is a class that allows us to print prettier output to the command line.
-class PrettyPrinter:
-  INFO = '\033[92m'
-  DEBUG = '\033[94m'
-  WARNING = '\033[93m'
-  ERROR = '\033[91m'
-  ENDCOLOR = '\033[0m'
-
-  def __init__(self, aEnableColor=False, aDebugEnabled=False, aVerboseEnabled=False):
-    self.mColorEnabled = aEnableColor
-    self.mDebugEnabled = aDebugEnabled
-    self.mVerboseEnabled = aVerboseEnabled
-
-  def debug(self, aMessage):
-    self.printColor('debug', aMessage)
-
-  def warn(self, aMessage):
-    self.printColor('warn', aMessage)
-
-  def error(self, aMessage):
-    self.printColor('error', aMessage)
-
-  def info(self, aMessage):
-    self.printColor('info', aMessage)
-
-  def isColorDisabled(self):
-    return not self.mColorEnabled
-
-  def printNoColor(self, aType, aMessage):
-    if aType == 'warn':
-        print ("WARNING: " + str(aMessage))
-    elif aType == 'error':
-        print ("ERROR: " + str(aMessage))
-    elif aType == 'info':
-        if self.mVerboseEnabled:
-          print ("INFO: " + str(aMessage))
-    elif aType == 'debug':
-      if self.mDebugEnabled:
-        print ("DEBUG: " + str(aMessage))
-    else:
-      # just print the message verbatim then, with no additions
-      print(aMessage)
-
-  def printColor(self, aType, aMessage):
-    if self.isColorDisabled():
-      self.printNoColor(aType, aMessage)
-      return
-
-    if aType == 'warn':
-      print (self.WARNING + "WARNING: " + self.ENDCOLOR + str(aMessage))
-    elif aType == 'error':
-      print (self.ERROR + "ERROR: " + self.ENDCOLOR + str(aMessage))
-    elif aType == 'info':
-      if (self.mVerboseEnabled):
-        print (self.INFO + "INFO: " + self.ENDCOLOR + str(aMessage))
-    else:
-      # we assume that the type was 'debug' then
-      if self.mDebugEnabled:
-        print (self.DEBUG + "DEBUG: " + self.ENDCOLOR + str(aMessage))
-
-class IDLDescriptor:
-  def __init__(self, aToken, aAffectsBinaryCompat):
-    self.mToken = aToken
-    self.mBinaryCompat = aAffectsBinaryCompat
-
-  def affectsBinaryCompatibility(self):
-    return self.mBinaryCompat
-
-  def getToken(self):
-    return self.mToken
-
-  def isInLine (self, aLine):
-    global gPrinter
-    match = re.search("^(\s)*[\+\-](\s)*\[(.*)](.*)", aLine)
-    if match:
-      splitAttrs = match.group(3).split(",")
-      for attr in splitAttrs:
-        gPrinter.debug("Found descriptor: " + attr)
-        if attr == self.mToken:
-          return True
-    return False
-
-  def hasDescriptorsInLine(aLine):
-    global gDescriptorList
-    for desc in gDescriptorList:
-      if desc.isInLine(aLine):
-        return True
-    return False
-
-  def areDescriptorsInLineAffectingBinaryCompat(aLine):
-    global gDescriptorList
-
-    if not IDLDescriptor.hasDescriptorsInLine(aLine):
-      return False
-
-    for desc in gDescriptorList:
-      if desc.affectsBinaryCompatibility:
-        gPrinter.debug("Descriptor: " + desc.getToken() + " affects binary compatibility.")
-        return True
-
-    gPrinter.debug("No descriptors found affecting binary compatibility.")
-    return False
-
-  areDescriptorsInLineAffectingBinaryCompat = staticmethod(areDescriptorsInLineAffectingBinaryCompat)
-  hasDescriptorsInLine = staticmethod(hasDescriptorsInLine)
-
-class SpecialBlockType:
-  def __init__(self, aStartToken, aEndToken):
-    self.mStartToken = aStartToken
-    self.mEndToken = aEndToken
-
-  def getStartToken(self):
-    return self.mStartToken
-
-  def getEndToken(self):
-    return self.mEndToken
-
-  def __str__(self):
-    return "[SpecialBlockType (" + str(self.mStartToken) + ")]"
-
-  def __equals__(self, aOther):
-    if self.mStartToken == aOther.mStartToken and self.mEndToken == aOther.mEndToken:
-      return True
-    return False
-
-  # Determines whether a line is the start of an IDL block that requires special
-  # handling (e.g. a comment or language specific code block).
-  #
-  # @param aLine The line to check
-  #
-  # @returns True, if the line is the start of an IDL block of a given type,
-  #          False otherwise
-  def isStartOfSpecialBlock(self, aLine):
-    # a line is a start of a block comment if it has the start token at the
-    # beginning of the line
-    match = re.match("^(\s)*" + self.mStartToken, aLine)
-    if match:
-      return True
-    return False
-
-  def containsSpecialBlock(self, aLine):
-    match = re.match("^(\s)*(.*)" + self.mStartToken + "(.*)" + self.mEndToken + "(\s)*(.*)", aLine)
-    if match:
-      return True
-    return False
-
-  # Determines whether a line is the end of an IDL block that requires special
-  # handling (e.g. a comment or language specific code block)
-  #
-  # @param aLine The line to check
-  #
-  # @returns True, if the line is the end of an IDL block of a given type,
-  #          False otherwise
-  def isEndOfSpecialBlock(self, aLine):
-    # a line is the end of a block comment if it has */ at the
-    # end of the line
-    regex = "(.*)" + self.mEndToken + "(\s)*$"
-    match = re.match(regex, aLine)
-    if match:
-      return True
-    return False
 
 # A SpecialBlockRange is composed of two numerals indicating lines at which
 # the range starts and ends, respectively, as well as a member variable
@@ -810,7 +648,7 @@ def updateFileMetadata(aLine, aPrevLineNumber, aLastLineWasRemoval):
 #          interfaceNameIDLMap is a map from interface names to IDL file full
 #          paths.
 def parsePatch(aInputPatch, aRootPath):
-  global gPrinter, gDescriptorList
+  global gPrinter
 
   currentIDLFile = None
   changedIDLFilePaths = []
@@ -995,8 +833,8 @@ def parsePatch(aInputPatch, aRootPath):
 
     constEx = isLineConstantExpression(line)
     change = isLineChange(line)
-    binaryCompat = IDLDescriptor.areDescriptorsInLineAffectingBinaryCompat(line)
-    descr = IDLDescriptor.hasDescriptorsInLine(line)
+    binaryCompat = IDLDescriptor.areDescriptorsInLineAffectingBinaryCompat(line, gPrinter)
+    descr = IDLDescriptor.hasDescriptorsInLine(line, gPrinter)
 
     if shouldIssueWarning & (currentIDLFile not in fileWarningsIssued):
       fileWarningsIssued.append(currentIDLFile)
@@ -1084,14 +922,14 @@ def createParser():
                          help='Disable output of colored ANSI text (helpful for scripts)')
 
 def main(aRootPath, aFile):
-  global gPrinter, gDescriptorList, gOutputTestPath
+  global gPrinter, gOutputTestPath
 
   ### initialization stage ###
   implicitJs = IDLDescriptor("implicit_jscontext", True)
   nostdcall = IDLDescriptor("nostdcall", True)
   notxpcom = IDLDescriptor("notxpcom", True)
   optionalArgc = IDLDescriptor("optional_argc", True)
-  gDescriptorList = [implicitJs, nostdcall, notxpcom, optionalArgc]
+  IDLDescriptor.kDescriptorList = [implicitJs, nostdcall, notxpcom, optionalArgc]
 
   ### parsing stage ###
   (interfacesRequiringNewIID, revvedInterfaces, interfaceNameIDLMap) = parsePatch(aFile, aRootPath)
