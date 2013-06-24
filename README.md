@@ -82,7 +82,7 @@ checkiid script:
      state isn't in the state that it expects. For the best results, it's useful
      to check out the revision of the repository where your diff will end:
 
-     > hg checkout -r <endrev>
+     > hg checkout -r [endrev]
 
      (Of course, if your end revision is tip, and you're already there, then
      this step isn't necessary).
@@ -94,7 +94,7 @@ checkiid script:
      interested in changes to files that end in .idl, there's no need to get
      changes to any other file:
 
-     > hg diff -r <startrev> -r <endrev> -I "**.idl" > /tmp/firefox.diff
+     > hg diff -r [startrev] -r [endrev] -I "**.idl" > /tmp/firefox.diff
 
      This will give you a file in /tmp called 'firefox.diff' that lists all the
      changes to files ending in .idl from <startrev> through <endrev>. You can
