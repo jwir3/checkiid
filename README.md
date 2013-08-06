@@ -62,7 +62,18 @@ repository on which you want to perform the check. The script not only checks
 through differences in hg commits, but also looks at local files in the
 repository.
 
-IV. How to Use the Script
+IV. Installation
+
+Installation of the checkiid script and associated modules is as easy as:
+
+> sudo python setup.py install
+
+from within the checkiid source directory. You may need administrator privileges,
+which is why the 'sudo' is used in the above command. If you're not running on
+Linux or Mac OS/X, you should be able to install the package using your normal
+python installation mechanism. 
+
+V. How to Use the Script
 
 There are a few steps that need to be performed before you can utilize the
 checkiid script:
@@ -107,7 +118,7 @@ checkiid script:
 
      > cat /tmp/firefox.diff | python /path/to/checkiid.py .
 
-V. Interpreting Output
+VI. Interpreting Output
   
 Once the script has completed, you will likely have something like the following
 output:

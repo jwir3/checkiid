@@ -919,7 +919,9 @@ def main(aRootPath, aFile):
       print("TEST-PASS")
       sys.exit(0)
 
-if __name__ == '__main__':
+def runMain():
+  global gPrinter
+
   (patchFile, rootPath) = parseArguments()
 
   # setup our printing utility vehicle
@@ -930,3 +932,5 @@ if __name__ == '__main__':
   if not patchFile == sys.stdin:
     patchFile.close()
 
+if __name__ == '__main__':
+  runMain()
