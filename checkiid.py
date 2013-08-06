@@ -847,7 +847,7 @@ def main(aRootPath, aFile):
   # if there is at least one interface that has an unrevved IID:
   if len(unrevvedInterfaces) > 0:
     if gOutputTestPath:
-      tempFile = open(os.path.join(tempfile.gettempdir(), "checkiid-test-file.log"), "w+")
+      tempFile = tempfile.TemporaryFile(prefix="checkiid-test-file-log")
 
     for interface in unrevvedInterfaces:
       # report that interface and the file that it's a part of
@@ -860,15 +860,13 @@ def main(aRootPath, aFile):
         gPrinter.debug("Printing '" + str(message) + "' to tempFile...")
         tempFile.write(message + "\n")
 
-    if gOutputTestPath:
-      tempFile.close()
-
   ## OPTIONAL Unit Test Mode ###
   if gOutputTestPath:
     try:
-      tempFile = open(os.path.join(tempfile.gettempdir(), "checkiid-test-file.log"), "r")
+      tempFile.seek(0)
       tempLines = tempFile.readlines()
-      tempFile.close()
+      gPrinter.debug("tempFile lines: " + str(tempLines))
+      tempFile.close()  # this deletes the temporary file
 
     except:
       hitException = True
