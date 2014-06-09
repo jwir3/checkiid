@@ -150,3 +150,11 @@ err on the side of revising the IID. Remember, changing the IID will force
 third-party add-ons to recompile and redistribute their code (if they use the
 interface in question). This is an annoyance, but not as much of an annoyance as
 having their application crash unexpectedly after release! 
+
+VII. Contributors
+
+A special thank-you to all of the following folks, who have made this script
+possible:
+
+* Lukas Blakk [lsblakk](https://github.com/lsblakk)
+* Sylvestre Ledru [sylvestre](https://github.com/sylvestre)
