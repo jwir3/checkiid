@@ -730,7 +730,7 @@ def parsePatch(aInputPatch, aRootPath):
 
     if shouldIssueWarning & (currentIDLFile not in fileWarningsIssued):
       fileWarningsIssued.append(currentIDLFile)
-      gPrinter.warn(str(currentIDLFile) + "' was not found in local repository. Are you sure your repository is at the correct revision?")
+      gPrinter.warn("'" + str(currentIDLFile) + "' was not found in local repository. Are you sure your repository is at the correct revision?")
 
     # if line is change to an interface and not a comment, a constant expr, or
     # an IID removal line:
