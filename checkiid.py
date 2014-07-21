@@ -734,7 +734,7 @@ def parsePatch(aInputPatch, aRootPath):
 
     # if line is change to an interface and not a comment, a constant expr, or
     # an IID removal line:
-    if binaryCompat or (not currentInterfaceWasRenamed and not descr and not iidRemoval and not cmt and not constEx and change and currentInterfaceName):
+    if (binaryCompat or (not currentInterfaceWasRenamed and not descr and not iidRemoval and not cmt and not constEx and change)) and currentInterfaceName:
 
       gPrinter.debug("Line number " + str(lineNo) + " with change to interface '" + str(currentInterfaceName) + "' meets qualifications for needing an IID change.")
       gPrinter.debug("binaryCompat: " + str(binaryCompat))
