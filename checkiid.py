@@ -24,10 +24,8 @@ import sys
 import os.path
 import argparse
 import tempfile
-import difflib
 from prettyprinter import PrettyPrinter
 from idlutils import IDLDescriptor
-from idlutils import SpecialBlockType
 from idlutils import SpecialBlockRange
 
 # Use to turn on debugging output
@@ -66,6 +64,7 @@ gPrinter = None
 #  def isDictionary(self):
 #    return self.mType == 'dictionary'
 
+
 # Detect whether a line (in a series of lines from diff output) indicates the
 # start of processing on an IDL file.
 #
@@ -78,6 +77,7 @@ def isStartOfIDLFile(aLine):
         return True
 
     return False
+
 
 # Detect whether or not a line is the addition of a new interface, based on
 # data collected from the line, the current interface (if one has been seen)
@@ -154,6 +154,7 @@ def isLineInterfaceRename(aLine, aCurrentInterface, aIDLFilePath, aLineRange=Non
 
     return True
 
+
 # Detect whether or not a line is an addition of a line containing an IDL IID.
 #
 # @param aLine A line to check
@@ -165,6 +166,7 @@ def isLineIIDAddition(aLine):
     if newUUID and aLine.startswith("+"):
         return True
     return False
+
 
 # Detect whether or not a line contains a UUID definition.
 #
@@ -180,6 +182,7 @@ def isLineIIDDefinition(aLine):
         return True
     return False
 
+
 # Detect whether or not a line is a removal of a line containing an IDL IID.
 #
 # @param aLine A line to check
@@ -192,6 +195,7 @@ def isLineIIDRemoval(aLine):
         return True
     return False
 
+
 # Extract the UUID from a line.
 #
 # @param aLine A line containing an IID
@@ -202,8 +206,8 @@ def extractIID(aLine):
     match = re.search("uuid\((.*)\)", aLine)
     if match:
         return match.group(1)
-
     return None
+
 
 # Extract the path to an IDL file from a diff output line.
 #
@@ -226,6 +230,7 @@ def extractIDLFilePath(aLine, aRootPath):
         idlPath = os.path.join(completePath, match.group(4))
     return idlPath
 
+
 # Extract the filename of an IDL file, without the full path.
 #
 # @param aLine The line from which to extract the filename. This should be the
@@ -246,6 +251,7 @@ def extractIDLFileName(aLine):
 
     return idlFilename
 
+
 # Determine if a line signifies creation of a file.
 #
 # If a line indicates that the file was created, aLine will be:
@@ -258,6 +264,7 @@ def doesLineSignifyCreation(aLine):
     if match:
         return True
     return False
+
 
 # Determine if a line signifies deletion of a file.
 #
@@ -272,6 +279,7 @@ def doesLineSignifyDeletion(aLine):
         return True
     return False
 
+
 # Determine whether or not a line in a diff output file indicates the start of
 # processing for a file.
 #
@@ -285,6 +293,7 @@ def isLineStartOfNewFile(aLine):
         return True
     return False
 
+
 def isLineConstantExpression(aLine):
     global gPrinter
     if not isAdditionLine(aLine) and not isRemovalLine(aLine):
@@ -295,6 +304,7 @@ def isLineConstantExpression(aLine):
         gPrinter.debug("Line is constant expression: " + aLine)
         return True
     return False
+
 
 # Determine whether or not this line represents the addition or removal of a
 # comment. This is a non-functional change, and IIDs should not be incremented
@@ -327,6 +337,7 @@ def isLineComment(aLine, aLineNumber, aFilePath):
 
     return False
 
+
 # Determine whether a line indicates that an interface is defined in the source
 # file.
 #
@@ -349,6 +360,7 @@ def isInterfaceDefinitionLine(aLine):
 
     return False
 
+
 # Determine whether a line indicates the context in which changes are being made
 # when the diff output is applied as a patch. These lines start with '@@', and
 # typically contain the interface name, if an interface is being modified.
@@ -361,6 +373,7 @@ def isInterfaceContextLine(aLine):
     if extractInterfaceNameFromContextLine(aLine):
         return True
     return False
+
 
 # Determine if a line changes the context in which changes take place if the
 # diff output is applied as a patch. Context lines begin with '@@' in git diff
@@ -376,6 +389,7 @@ def isContextLine(aLine):
         return True
     return False
 
+
 # Extract an interface name, given a line that is a definition line.
 # (e.g. 'interface nsIDOMFileList : nsISupports')
 #
@@ -390,6 +404,7 @@ def extractInterfaceNameFromDefinitionLine(aLine):
 
     return extractInterfaceName(aLine)
 
+
 # Extract an interface name, given a line that is a context line.
 # (e.g. '@@ -14,28 +14,27 @@ interface nsIScriptGlobalObject')
 #
@@ -399,6 +414,7 @@ def extractInterfaceNameFromDefinitionLine(aLine):
 #          None, otherwise.
 def extractInterfaceNameFromContextLine(aLine):
     return extractInterfaceName(aLine, "@@(\s)+(.*)(\s)+@@")
+
 
 # Extract a line number, given a line that is a context line.
 # (e.g. '@@ -14,28 +14,27 @@ interface nsIScriptGlobalObject')
@@ -412,6 +428,7 @@ def extractLineNumberFromContext(aLine):
     if (match):
         return int(match.group(2)) - 1
     return 0
+
 
 # Extract an interface name, given a line and an optional prefix. An interface
 # is defined in the following manner:
@@ -442,6 +459,7 @@ def extractInterfaceName(aLine, aContextPrefix=''):
 #    return ChangeContainer(name, 'interface')
     return None
 
+
 # Detect whether or not a line from diff output is a line representing a change.
 # This is equivalent to isAdditionLine(aLine) || isRemovalLine(aLine).
 #
@@ -453,6 +471,7 @@ def isLineChange(aLine):
     if isAdditionLine(aLine) or isRemovalLine(aLine):
         return True
     return False
+
 
 # Detect whether a line in the diff output represents an addition to a file.
 #
@@ -472,6 +491,7 @@ def isAdditionLine(aLine):
 
     return True
 
+
 def isEndOfInterfaceRemoval(aLine):
     if not isRemovalLine(aLine):
         return False
@@ -481,6 +501,7 @@ def isEndOfInterfaceRemoval(aLine):
         return False
 
     return True
+
 
 # Detect whether a line in the diff output represents a removal to a file.
 #
@@ -500,6 +521,7 @@ def isRemovalLine(aLine):
 
     return True
 
+
 def extractContentFromChangeLine(aLine):
     if not isRemovalLine(aLine) and not isAdditionLine(aLine):
         return None
@@ -508,6 +530,7 @@ def extractContentFromChangeLine(aLine):
     if match:
         return match.group(1)
     return None
+
 
 def updateFileMetadata(aLine, aPrevLineNumber, aLastLineWasRemoval):
     currentLineNumber = aPrevLineNumber + 1
@@ -523,6 +546,7 @@ def updateFileMetadata(aLine, aPrevLineNumber, aLastLineWasRemoval):
             isRemoval = True
             currentLineNumber = aPrevLineNumber
     return (currentLineNumber, isRemoval)
+
 
 # Parse a given diff output to get data about which interfaces have been changed
 # and whether corresponding IIDs were changed as well.
@@ -623,10 +647,10 @@ def parsePatch(aInputPatch, aRootPath):
             currentIDLPath = extractIDLFilePath(line, aRootPath)
 
             # push idl file path onto changed idl list
-            if not currentIDLPath in changedIDLFilePaths:
+            if currentIDLPath not in changedIDLFilePaths:
                 changedIDLFilePaths.append(currentIDLPath)
 
-            if not currentIDLFile in changedIDLFileNames:
+            if currentIDLFile not in changedIDLFileNames:
                 changedIDLFileNames.append(currentIDLFile)
 
             # now that we're in a new file, we need to make sure that we detect the
@@ -669,7 +693,7 @@ def parsePatch(aInputPatch, aRootPath):
 
             # push interface name onto revved interface list (for the previous step)
             if foundIIDChangeLine:
-                gPrinter.debug("Appending " + str(currentInterfaceName) + " to revvedInterfaces");
+                gPrinter.debug("Appending " + str(currentInterfaceName) + " to revvedInterfaces")
 
                 revvedInterfaces.append(currentInterfaceName)
                 foundIIDChangeLine = False
@@ -734,7 +758,7 @@ def parsePatch(aInputPatch, aRootPath):
 
         # if line is change to an interface and not a comment, a constant expr, or
         # an IID removal line:
-        if (binaryCompat or (not currentInterfaceWasRenamed and not descr and not iidRemoval and not cmt and not constEx and change)) and currentInterfaceName:
+        if binaryCompat or (not currentInterfaceWasRenamed and not descr and not iidRemoval and not cmt and not constEx and change and currentInterfaceName):
 
             gPrinter.debug("Line number " + str(lineNo) + " with change to interface '" + str(currentInterfaceName) + "' meets qualifications for needing an IID change.")
             gPrinter.debug("binaryCompat: " + str(binaryCompat))
@@ -757,6 +781,7 @@ def parsePatch(aInputPatch, aRootPath):
             interfaceMayBeRemoved = False
 
     return (interfacesRequiringNewIID, revvedInterfaces, interfaceNameIDLMap)
+
 
 def parseArguments():
     global gParser, DEBUG, VERBOSE, COLOR, gOutputTestPath
@@ -794,6 +819,7 @@ def parseArguments():
 
     return (inputFile, parsed.repo[0])
 
+
 def createParser():
     global gParser
 
@@ -807,27 +833,28 @@ def createParser():
         gParser.add_argument('-d', '--debug', action='store_true', dest='debug',
                              help='Print debugging information while running.')
         gParser.add_argument('-t', metavar=('<reference output file>'), action='store',
-                            dest="testpath", nargs=1, help="Perform a unit test and compare output against a reference file.")
+                             dest="testpath", nargs=1, help="Perform a unit test and compare output against a reference file.")
         gParser.add_argument('repo', help='Path to hg repository from where diff was taken', nargs=1)
         gParser.add_argument('inputfile', help='Path to a patch file on which to operate', nargs='?', default="stdin")
         gParser.add_argument('-n', '--no-color', action="store_true", dest="nocolor",
                              help='Disable output of colored ANSI text (helpful for scripts)')
 
+
 def main(aRootPath, aFile):
     global gPrinter, gOutputTestPath
 
-    ### initialization stage ###
+    # initialization stage
     implicitJs = IDLDescriptor("implicit_jscontext", True)
     nostdcall = IDLDescriptor("nostdcall", True)
     notxpcom = IDLDescriptor("notxpcom", True)
     optionalArgc = IDLDescriptor("optional_argc", True)
     IDLDescriptor.kDescriptorList = [implicitJs, nostdcall, notxpcom, optionalArgc]
 
-    ### parsing stage ###
+    # parsing stage
     (interfacesRequiringNewIID, revvedInterfaces, interfaceNameIDLMap) = parsePatch(aFile, aRootPath)
     unrevvedInterfaces = []
 
-    ### checking stage ###
+    # checking stage
     # for each interface in required revs list:
     for interface in interfacesRequiringNewIID:
         # if the interface name is in revved interface list:
@@ -843,7 +870,7 @@ def main(aRootPath, aFile):
             # add interface name to unrevved interface list
             unrevvedInterfaces.append(interface)
 
-    ### reporting stage ###
+    # reporting stage
     # if there is at least one interface that has an unrevved IID:
     if len(unrevvedInterfaces) > 0:
         if gOutputTestPath:
@@ -860,7 +887,7 @@ def main(aRootPath, aFile):
                 gPrinter.debug("Printing '" + str(message) + "' to tempFile...")
                 tempFile.write(message + "\n")
 
-    ## OPTIONAL Unit Test Mode ###
+    # OPTIONAL Unit Test Mode
     if gOutputTestPath:
         try:
             tempFile.seek(0)
@@ -869,7 +896,6 @@ def main(aRootPath, aFile):
             tempFile.close()  # this deletes the temporary file
 
         except:
-            hitException = True
             tempLines = []
 
         refFile = open(gOutputTestPath, "r")
@@ -917,6 +943,7 @@ def main(aRootPath, aFile):
             print("TEST-PASS")
             sys.exit(0)
 
+
 def runMain():
     global gPrinter
 
@@ -929,6 +956,7 @@ def runMain():
 
     if not patchFile == sys.stdin:
         patchFile.close()
+
 
 if __name__ == '__main__':
     runMain()

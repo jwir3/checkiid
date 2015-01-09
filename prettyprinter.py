@@ -1,6 +1,8 @@
 # This is a class that allows us to print prettier output to the command line.
 # It's designed so that you can create a single object of type PrettyPrinter,
 # then use that printer throughout your script.
+
+
 class PrettyPrinter:
 
     # These are colors that can be modified to better suit tastes when using this

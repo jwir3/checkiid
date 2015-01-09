@@ -10,6 +10,8 @@ import re
 # This class also holds a list of all the current descriptors loaded, so that
 # the list can be searched quickly. This list is a singleton (i.e. static)
 # across all IDLDescriptor objects.
+
+
 class IDLDescriptor:
     # Static list of IDL descriptors
     kDescriptorList = []
@@ -55,7 +57,7 @@ class IDLDescriptor:
     #
     # @returns True, if the idl descriptor which this object represents appears in
     #          aLine; False, otherwise.
-    def isInLine (self, aLine, aPrinter=None):
+    def isInLine(self, aLine, aPrinter=None):
         match = re.search("^(\s)*[\+\-](\s)*\[(.*)](.*)", aLine)
         if match:
             splitAttrs = match.group(3).split(",")
@@ -113,6 +115,7 @@ class IDLDescriptor:
 
     areDescriptorsInLineAffectingBinaryCompat = staticmethod(areDescriptorsInLineAffectingBinaryCompat)
     hasDescriptorsInLine = staticmethod(hasDescriptorsInLine)
+
 
 # @class SpecialBlockType An object representing a type of special block. A
 #        special block is a section of code that needs to be interpreted
@@ -203,6 +206,7 @@ class SpecialBlockType:
             return True
         return False
 
+
 # A SpecialBlockRange is composed of two numerals indicating lines at which
 # the range starts and ends, respectively, as well as a member variable
 # indicating the file from which the range was generated.
@@ -217,7 +221,7 @@ class SpecialBlockType:
 class SpecialBlockRange:
 
     # A mapping of file paths to special block range objects.
-    kFilePathToCommentRangeMap = {};
+    kFilePathToCommentRangeMap = {}
 
     # Create a new object of type SpecialBlockRange.
     #
@@ -268,7 +272,7 @@ class SpecialBlockRange:
     # @param aPrinter An optional argument of type PrettyPrinter to route debug
     #        output from this method through.
     def getRangesForFilePath(aFilePath, aPrinter=None):
-        if not aFilePath in SpecialBlockRange.kFilePathToCommentRangeMap:
+        if aFilePath not in SpecialBlockRange.kFilePathToCommentRangeMap:
             SpecialBlockRange.findAllSpecialBlocksForFile(aFilePath, aPrinter)
 
         return SpecialBlockRange.kFilePathToCommentRangeMap[aFilePath]
@@ -289,7 +293,7 @@ class SpecialBlockRange:
 
         aPrinter.debug("Starting findAllSpecialBlocksForFile")
 
-        if not aFilePath in SpecialBlockRange.kFilePathToCommentRangeMap.keys():
+        if aFilePath not in SpecialBlockRange.kFilePathToCommentRangeMap.keys():
             SpecialBlockRange.kFilePathToCommentRangeMap[aFilePath] = []
 
         parseFile = open(aFilePath)
