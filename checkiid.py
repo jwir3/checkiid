@@ -221,13 +221,12 @@ def extractIID(aLine):
 #
 # @see isStartOfIDLFile
 def extractIDLFilePath(aLine, aRootPath):
-    completePath = aRootPath
 
     # Find line containing diff --git a/<path>/<idlFilename>.idl
     match = re.search("^diff\ --git\ a/(([a-zA-Z0-9]+/)+([a-zA-Z0-9]+\.idl))\ b/(([a-zA-Z0-9]+/)+([a-zA-Z0-9]+\.idl))", aLine)
     idlPath = None
     if match:
-        idlPath = os.path.join(completePath, match.group(4))
+        idlPath = os.path.join(aRootPath, match.group(4))
     return idlPath
 
 
