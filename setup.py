@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-entryPoints = {'console_scripts': [ 'checkiid = checkiid:runMain' ] }
+entryPoints = {'console_scripts': ['checkiid = checkiid:runMain']}
 
 setup(name='CheckIID',
       version='1.0.4',
@@ -13,4 +13,4 @@ setup(name='CheckIID',
       py_modules=['idlutils', 'prettyprinter', 'checkiid'],
       entry_points=entryPoints,
       requires=['argparse', 'difflib']
-     )
+      )
