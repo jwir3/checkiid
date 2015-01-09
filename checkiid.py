@@ -878,7 +878,9 @@ def main(aRootPath, aFile):
         for interface in unrevvedInterfaces:
             # report that interface and the file that it's a part of
             interfaceFilename = interfaceNameIDLMap[interface]
-            message = "Interface '" + str(interface) + "', in file '" + interfaceFilename + "' may need a new IID"
+            message = "Interface '" + str(interface) + "', in file '" + interfaceFilename + "' may need a new IID. Check on:\n"
+            message += "http://dxr.mozilla.org/mozilla-central/search?q=" + interfaceFilename + "&redirect=true"
+
 
             if not gOutputTestPath:
                 gPrinter.error(message)
